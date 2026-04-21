@@ -1,0 +1,131 @@
+import pygame
+import random
+
+pygame.init()
+
+# === ADAPTIVE SCREEN FITTING ===
+# Fullscreen at native resolution of whatever screen it's run on
+# (laptop, monitor, projector, broadcast/streaming screen, etc.)
+# All proportions remain mathematically identical to the reference image style
+screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
+WIDTH, HEIGHT = screen.get_size()
+
+# Scaling factors based on the original tuned resolution (900×1100)
+BASE_WIDTH = 900
+BASE_HEIGHT = 1100
+w_scale = WIDTH / BASE_WIDTH
+h_scale = HEIGHT / BASE_HEIGHT
+
+pygame.display.set_caption("Procedural City - Adaptive Fullscreen (Taller Skyline)")
+
+# --- COLOR SCHEME (exact match to reference image tones) ---
+SKY_COLOR = (55, 55, 60)
+
+BUILDING_COLORS = [
+    (20, 20, 22),
+    (30, 30, 32),
+    (40, 40, 45),
+    (60, 60, 65),
+]
+
+WINDOW_COLORS = [
+    (120, 115, 100),
+    (140, 135, 115),
+    (100, 100, 90),
+]
+
+# --- DRAW BUILDING (scaled for any screen size) ---
+def draw_building(x, base_y, width, height):
+    color = random.choice(BUILDING_COLORS)
+    # Main building body
+    rect = pygame.Rect(x, base_y - height, width, height)
+    pygame.draw.rect(screen, color, rect)
+
+    # === WINDOWS: scaled density & grid ===
+    window_size = random.randint(max(2, int(3 * w_scale)), max(2, int(5 * w_scale)))
+    spacing = window_size + random.randint(max(1, int(2 * w_scale)), max(2, int(4 * w_scale)))
+
+    for wx in range(x + max(3, int(5 * w_scale)), x + width - window_size, spacing):
+        for wy in range(base_y - height + max(3, int(5 * w_scale)), base_y - max(3, int(5 * w_scale)), spacing):
+            if random.random() > 0.20:
+                w_color = random.choice(WINDOW_COLORS)
+                pygame.draw.rect(screen, w_color,
+                                 (wx, wy, window_size, window_size))
+
+    # === Roof logic ===
+    top_y = base_y - height
+
+    if random.random() < 0.28:
+        # Triangle peaks remain short and subtle (scaled)
+        roof_height = random.randint(int(20 * h_scale), int(55 * h_scale))
+        peak_offset = random.randint(int(10 * w_scale), max(int(10 * w_scale), width - int(10 * w_scale)))
+        roof_color = color
+        points = [
+            (x, top_y),
+            (x + width, top_y),
+            (x + peak_offset, top_y - roof_height)
+        ]
+        pygame.draw.polygon(screen, roof_color, points)
+
+    else:
+        # Flat building → Pyramid-style spire
+        if random.random() < 0.32:
+            spire_base_width = int(width * random.uniform(0.55, 0.85))
+            spire_x = x + (width - spire_base_width) // 2
+            spire_y = top_y
+
+            # Bottom tier
+            tier1_height = random.randint(int(22 * h_scale), int(48 * h_scale))
+            pygame.draw.rect(screen, color,
+                             (spire_x, spire_y - tier1_height, spire_base_width, tier1_height))
+
+            # Middle tier
+            tier2_width = int(spire_base_width * random.uniform(0.60, 0.82))
+            tier2_x = x + (width - tier2_width) // 2
+            tier2_height = random.randint(int(18 * h_scale), int(40 * h_scale))
+            pygame.draw.rect(screen, color,
+                             (tier2_x, spire_y - tier1_height - tier2_height, tier2_width, tier2_height))
+
+            # Top thin tall spire
+            spire_top_width = random.randint(max(2, int(3 * w_scale)), max(3, int(7 * w_scale)))
+            spire_top_x = x + (width - spire_top_width) // 2
+            spire_top_height = random.randint(int(65 * h_scale), int(195 * h_scale))
+            pygame.draw.rect(screen, color,
+                             (spire_top_x, spire_y - tier1_height - tier2_height - spire_top_height,
+                              spire_top_width, spire_top_height))
+
+
+# --- DRAW SINGLE SKYLINE LAYER (scaled density & overlap) ---
+def draw_layer(y_base, min_h, max_h):
+    x = 0
+    while x < WIDTH:
+        w = random.randint(int(42 * w_scale), int(135 * w_scale))
+        h = random.randint(min_h, max_h)
+        draw_building(x, y_base, w, h)
+        x += w - random.randint(int(9 * w_scale), int(34 * w_scale))
+
+
+# --- MAIN DRAW ---
+def generate_city():
+    screen.fill(SKY_COLOR)
+
+    # === UPDATED: Max height increased ===
+    # Previous max was \~65-70% of screen height.
+    # Now raised to \~74-80% of screen height (base value 820 instead of 720).
+    # This makes the tallest buildings noticeably taller while still leaving
+    # a good amount of dark sky above (exactly as requested: "a bit higher").
+    # All spires and triangle roofs scale automatically with the new height.
+    draw_layer(HEIGHT, int(260 * h_scale), int(820 * h_scale))
+
+generate_city()
+pygame.display.flip()
+
+# --- LOOP (ESC to exit) ---
+running = True
+while running:
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT or \
+           (event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE):
+            running = False
+
+pygame.quit()#
